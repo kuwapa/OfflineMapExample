@@ -1,10 +1,23 @@
 package com.abhiank.offline
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
+import android.util.Size
+import android.view.Gravity
+import android.view.View
+import android.widget.Button
+import android.widget.FrameLayout
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.mapbox.android.gestures.StandardScaleGestureDetector
+import com.mapbox.geojson.Point
+import com.mapbox.geojson.Polygon
 import com.mapbox.mapboxsdk.Mapbox
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
@@ -12,7 +25,14 @@ import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import com.mapbox.mapboxsdk.maps.MapView
 import com.mapbox.mapboxsdk.maps.MapboxMap
 import com.mapbox.mapboxsdk.maps.Style
+import com.mapbox.mapboxsdk.style.layers.FillLayer
+import com.mapbox.mapboxsdk.style.layers.PropertyFactory
+import com.mapbox.mapboxsdk.style.layers.PropertyFactory.fillColor
+import com.mapbox.mapboxsdk.style.layers.PropertyFactory.fillOpacity
+import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import java.io.*
+import kotlin.math.*
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,37 +44,175 @@ class MainActivity : AppCompatActivity() {
         Mapbox.getInstance(this, null)
         setContentView(R.layout.activity_main)
 
+        fun changeLanguage(lang: String) {
+            map.getStyle { style ->
+                style.getLayer("waterway-name")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("water-name-lakeline")
+                    ?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("water-name")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("poi-level-3")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("poi-level-2")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("poi-level-1")?.setProperties(PropertyFactory.textField(lang))
+
+                style.getLayer("highway-name-path")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("highway-name-minor")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("highway-name-major")?.setProperties(PropertyFactory.textField(lang))
+                /*
+                Not translating the highway-shield cuz numbers will be in latin and doing this
+                causes errors
+                https://github.com/systemed/tilemaker/issues/305#issuecomment-927429019
+                 */
+                //style.getLayer("highway-shield")?.setProperties(textField(lang))
+
+                style.getLayer("place-other")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("place-village")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("place-town")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("place-city")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("place-city-capital")?.setProperties(PropertyFactory.textField(lang))
+
+                style.getLayer("place-country-3")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("place-country-2")?.setProperties(PropertyFactory.textField(lang))
+                style.getLayer("place-country-1")?.setProperties(PropertyFactory.textField(lang))
+
+                style.getLayer("place-continent")?.setProperties(PropertyFactory.textField(lang))
+            }
+        }
+
         mapView.onCreate(savedInstanceState)
-        mapView.getMapAsync { it ->
+        mapView.getMapAsync {
             map = it
+//            map.isDebugActive = true
+            showMapCenter()
 
-            val styleJsonInputStream = assets.open("bright.json")
-
-            //Creating a new file to which to copy the json content to
-            val dir = File(filesDir.absolutePath)
-            val styleFile = File(dir, "bright.json")
-            //Copying the original JSON content to new file
-            copyStreamToFile(styleJsonInputStream, styleFile)
+            map.addOnCameraMoveListener {
+                Log.d("zoom", map.cameraPosition.zoom.toString())
+                val zoom = getBoundsZoomLevel(
+                    this,
+                    map.projection.visibleRegion.latLngBounds,
+                    Size(mapView.measuredWidth, mapView.measuredHeight)
+                )
+                Log.d("zoom_bounds", zoom.toString())
+                Log.d("map_width", map.width.toString())
+                Log.d("map_height", map.height.toString())
+                Log.d("map_measured_width", mapView.measuredWidth.toString())
+                Log.d("map_measured_height", mapView.measuredHeight.toString())
+                val visibleHeight = map.projection.visibleRegion.latLngBounds.latitudeSpan
+                val visibleWidth = map.projection.visibleRegion.latLngBounds.longitudeSpan
+                Log.d("lat_span", visibleHeight.toString())
+                Log.d("lng_span", visibleWidth.toString())
+            }
 
             //Getting reference to mbtiles file in assets
-            val mbtilesFile = getFileFromAssets(this, "india_coimbatore.mbtiles")
-            val bounds = getLatLngBounds(mbtilesFile)
+            showMbTilesMap(getFileFromAssets(this, "maps_cap1.mbtiles"))
 
-            //Replacing placeholder with uri of the mbtiles file
-            val newFileStr = styleFile.inputStream().readToString()
-                .replace("___FILE_URI___", "mbtiles://${Uri.fromFile(mbtilesFile)}")
+//            showMbTilesMap(File("/storage/emulated/0/Android/data/com.abhiank.offline/files/belarus.mbtiles"))
 
-            //Writing new content to file
-            val gpxWriter = FileWriter(styleFile)
-            val out = BufferedWriter(gpxWriter)
-            out.write(newFileStr)
-            out.close()
+            var files = ""
+            getExternalFilesDir(null)!!.listFiles()!!.forEach { eachFile ->
+                files = files + eachFile.path + " ,"
+            }
+            Log.i("files", files)
 
-            //Setting the map style using the new edited JSON file
-            map.setStyle(Style.Builder().fromUri(Uri.fromFile(styleFile).toString()))
-            //Setting camera view over the mbtiles area
-            map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 50))
+            changeLanguage("{name_en}")
+
+//            map.projection.getProjectedMetersForLatLng()
         }
+
+        findViewById<Button>(R.id.pickFileButton).setOnClickListener {
+            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                type = "*/*"
+            }
+            filePickerReturnResult.launch(intent)
+        }
+
+
+    }
+
+    private val filePickerReturnResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+                val returnIntent = result.data!!
+                showMbTilesMap(File(returnIntent.data!!.path!!))
+            }
+        }
+
+    private fun showMbTilesMap(mbtilesFile: File) {
+        val styleJsonInputStream = assets.open("bright.json")
+
+        //Creating a new file to which to copy the json content to
+        val dir = File(filesDir.absolutePath)
+        val styleFile = File(dir, "bright.json")
+        //Copying the original JSON content to new file
+        copyStreamToFile(styleJsonInputStream, styleFile)
+
+        val bounds = getLatLngBounds(mbtilesFile)
+
+        val uri = Uri.fromFile(mbtilesFile)
+
+        Log.d("showMBTilesFile", "fileUri = $uri")
+
+        //Replacing placeholder with uri of the mbtiles file
+        val newFileStr = styleFile.inputStream().readToString()
+            .replace("___FILE_URI___", "mbtiles://$uri")
+
+        //Writing new content to file
+        val gpxWriter = FileWriter(styleFile)
+        val out = BufferedWriter(gpxWriter)
+        out.write(newFileStr)
+        out.close()
+
+        //Setting the map style using the new edited JSON file
+        map.setStyle(
+            Style.Builder().fromUri(Uri.fromFile(styleFile).toString())
+        ) { style ->
+            showBoundsArea(style, bounds, Color.RED, "source-id-1", "layer-id-1", 0.25f)
+        }
+        //Setting camera view over the mbtiles area
+
+        //todo looking for camera update listener so that I can set min zoom pref after camera is done moving
+        map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 0),
+            object : MapboxMap.CancelableCallback {
+                override fun onCancel() {}
+
+                override fun onFinish() {
+                    Log.d("zoom_min", map.cameraPosition.zoom.toString())
+                    map.setMinZoomPreference(map.cameraPosition.zoom)
+                    /*
+                    The way this works is that only the center of the map is not allowed to leave the
+                    bounding box. I had assumed that the entire map view would not go outside the bounding
+                    box but that is not how this works.
+                     */
+//                    map.setLatLngBoundsForCameraTarget(bounds.halfBounds())
+
+                    map.limitViewToBounds(bounds)
+
+                    map.addOnScaleListener(object : MapboxMap.OnScaleListener {
+                        override fun onScaleBegin(detector: StandardScaleGestureDetector) {}
+
+                        override fun onScale(detector: StandardScaleGestureDetector) {
+                            map.limitViewToBounds(bounds)
+                        }
+
+                        override fun onScaleEnd(detector: StandardScaleGestureDetector) {}
+                    })
+
+                    map.addOnCameraIdleListener { map.limitViewToBounds(bounds) }
+                }
+
+            })
+
+
+//        val zoom = getBoundsZoomLevel(this, bounds, Size(mapView.measuredWidth, mapView.measuredHeight))
+//        Log.d("showMBTilesFile", "map_height = ${mapView.measuredHeight}")
+//        Log.d("showMBTilesFile", "map_width = ${mapView.measuredWidth}")
+//        map.setMinZoomPreference(zoom)
+    }
+
+    private fun showMapCenter() {
+        val mapCenter = View(this)
+        mapCenter.layoutParams = FrameLayout.LayoutParams(15, 15, Gravity.CENTER)
+        mapCenter.setBackgroundColor(Color.GREEN)
+        mapView.addView(mapCenter)
     }
 }
 
@@ -89,6 +247,9 @@ fun getFileFromAssets(context: Context, fileName: String): File =
         }
 
 fun getLatLngBounds(file: File): LatLngBounds {
+
+    Log.d("getLatLngBounds", "absolutePath = ${file.absoluteFile}")
+
     val openDatabase =
         SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
     val cursor = openDatabase.query(
@@ -122,4 +283,129 @@ fun InputStream.readToString(): String {
         total.append(line).append('\n')
     }
     return total.toString()
+}
+
+fun Context.convertDpToPixel(dp: Int): Float {
+    val resources = this.resources
+    val metrics = resources.displayMetrics
+    return dp * (metrics.densityDpi / 160f)
+}
+
+fun getBoundsZoomLevel(context: Context, bounds: LatLngBounds, mapDim: Size): Double {
+    val dp256 = context.convertDpToPixel(256).toInt()
+    val WORLD_DIM = Size(dp256, dp256)
+    val ZOOM_MAX = 21.toDouble()
+
+    fun latRad(lat: Double): Double {
+        val sin = sin(lat * Math.PI / 180)
+        val radX2 = ln((1 + sin) / (1 - sin)) / 2
+        return max(min(radX2, Math.PI), -Math.PI) / 2
+    }
+
+    fun zoom(mapPx: Int, worldPx: Int, fraction: Double): Double {
+        return ln(mapPx / worldPx / fraction) / ln(2.0)
+    }
+
+    val ne = bounds.northEast
+    val sw = bounds.southWest
+
+    val latFraction = (latRad(ne.latitude) - latRad(sw.latitude)) / Math.PI
+
+    val lngDiff = ne.longitude - sw.longitude
+    val lngFraction = if (lngDiff < 0) {
+        (lngDiff + 360)
+    } else {
+        (lngDiff / 360)
+    }
+
+    val latZoom = zoom(mapDim.height, WORLD_DIM.height, latFraction)
+    val lngZoom = zoom(mapDim.width, WORLD_DIM.width, lngFraction)
+
+    return minOf(latZoom, lngZoom, ZOOM_MAX)
+}
+
+private fun showBoundsArea(
+    loadedMapStyle: Style,
+    bounds: LatLngBounds,
+    color: Int,
+    sourceId: String,
+    layerId: String,
+    opacity: Float
+) {
+    val outerPoints: MutableList<Point> = ArrayList()
+
+    outerPoints.add(Point.fromLngLat(bounds.northWest.longitude, bounds.northWest.latitude))
+    outerPoints.add(Point.fromLngLat(bounds.northEast.longitude, bounds.northEast.latitude))
+    outerPoints.add(Point.fromLngLat(bounds.southEast.longitude, bounds.southEast.latitude))
+    outerPoints.add(Point.fromLngLat(bounds.southWest.longitude, bounds.southWest.latitude))
+    outerPoints.add(Point.fromLngLat(bounds.northWest.longitude, bounds.northWest.latitude))
+
+    loadedMapStyle.removeLayer(layerId)
+    loadedMapStyle.removeSource(sourceId)
+
+    loadedMapStyle.addSource(
+        GeoJsonSource(
+            sourceId,
+            Polygon.fromLngLats(mutableListOf(outerPoints.toMutableList()))
+        )
+    )
+    loadedMapStyle.addLayer(
+        FillLayer(layerId, sourceId).withProperties(
+            fillColor(color),
+            fillOpacity(opacity)
+        )
+    )
+}
+
+fun LatLngBounds.halfBounds(): LatLngBounds {
+    val leftTopBounds =
+        LatLngBounds
+            .Builder()
+            .include(northWest)
+            .include(center)
+            .build()
+
+    val rightBottomBounds =
+        LatLngBounds
+            .Builder()
+            .include(center)
+            .include(southEast)
+            .build()
+
+    return LatLngBounds
+        .Builder()
+        .include(leftTopBounds.center)
+        .include(rightBottomBounds.center)
+        .build()
+}
+
+/*
+Wrote about this in detail over here
+https://medium.com/@ty2/how-to-limit-the-map-window-to-a-bounding-box-for-mapbox-maplibre-e504d3df1ae4
+*/
+fun MapboxMap.limitViewToBounds(bounds: LatLngBounds) {
+
+    val newBoundsHeight = bounds.latitudeSpan - projection.visibleRegion.latLngBounds.latitudeSpan
+    val newBoundsWidth = bounds.longitudeSpan - projection.visibleRegion.latLngBounds.longitudeSpan
+
+    val leftTopLatLng = LatLng(
+        bounds.latNorth - (bounds.latitudeSpan - newBoundsHeight) / 2,
+        bounds.lonEast - (bounds.longitudeSpan - newBoundsWidth) / 2 - newBoundsWidth,
+    )
+
+    val rightBottomLatLng = LatLng(
+        bounds.latNorth - (bounds.latitudeSpan - newBoundsHeight) / 2 - newBoundsHeight,
+        bounds.lonEast - (bounds.longitudeSpan - newBoundsWidth) / 2,
+    )
+
+    val newBounds = LatLngBounds.Builder()
+        .include(leftTopLatLng)
+        .include(rightBottomLatLng)
+        .build()
+
+    setLatLngBoundsForCameraTarget(newBounds)
+
+    getStyle {
+        showBoundsArea(it, newBounds, Color.GRAY, "source-id-2", "layer-id-2", 0.4f)
+    }
 }
