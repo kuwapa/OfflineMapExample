@@ -8,13 +8,14 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.util.Size
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.Switch
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SwitchCompat
 import com.mapbox.android.gestures.StandardScaleGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
@@ -31,10 +32,13 @@ import com.mapbox.mapboxsdk.style.layers.PropertyFactory.fillColor
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory.fillOpacity
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import java.io.*
-import kotlin.math.*
-
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        const val MBTILES_NAME = "maps_south_sulawesi.mbtiles"
+        const val showRedBbox = false
+    }
 
     private val mapView: MapView by lazy { findViewById(R.id.mapView) }
     private lateinit var map: MapboxMap
@@ -78,32 +82,25 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        findViewById<SwitchCompat>(R.id.debugModeSwitch).setOnCheckedChangeListener { compoundButton, b ->
+            map.isDebugActive = b
+        }
+
         mapView.onCreate(savedInstanceState)
         mapView.getMapAsync {
             map = it
-//            map.isDebugActive = true
-            showMapCenter()
+
+            //Showing a green dot at map center to show how the map panning is restricted to the bbox
+            //showMapCenter()
 
             map.addOnCameraMoveListener {
                 Log.d("zoom", map.cameraPosition.zoom.toString())
-                val zoom = getBoundsZoomLevel(
-                    this,
-                    map.projection.visibleRegion.latLngBounds,
-                    Size(mapView.measuredWidth, mapView.measuredHeight)
-                )
-                Log.d("zoom_bounds", zoom.toString())
-                Log.d("map_width", map.width.toString())
-                Log.d("map_height", map.height.toString())
-                Log.d("map_measured_width", mapView.measuredWidth.toString())
-                Log.d("map_measured_height", mapView.measuredHeight.toString())
-                val visibleHeight = map.projection.visibleRegion.latLngBounds.latitudeSpan
-                val visibleWidth = map.projection.visibleRegion.latLngBounds.longitudeSpan
-                Log.d("lat_span", visibleHeight.toString())
-                Log.d("lng_span", visibleWidth.toString())
             }
 
             //Getting reference to mbtiles file in assets
-            showMbTilesMap(getFileFromAssets(this, "maps_cap1.mbtiles"))
+            showMbTilesMap(getFileFromAssets(this, MBTILES_NAME))
+            showMbTilesMap(getFileFromAssets(this, "maps_west_sulawesi.mbtiles"))
+//            showMbTilesMap(getFileFromAssets(this, "maps_salzburg_4.mbtiles"))
 
 //            showMbTilesMap(File("/storage/emulated/0/Android/data/com.abhiank.offline/files/belarus.mbtiles"))
 
@@ -114,8 +111,6 @@ class MainActivity : AppCompatActivity() {
             Log.i("files", files)
 
             changeLanguage("{name_en}")
-
-//            map.projection.getProjectedMetersForLatLng()
         }
 
         findViewById<Button>(R.id.pickFileButton).setOnClickListener {
@@ -124,8 +119,6 @@ class MainActivity : AppCompatActivity() {
             }
             filePickerReturnResult.launch(intent)
         }
-
-
     }
 
     private val filePickerReturnResult =
@@ -165,47 +158,43 @@ class MainActivity : AppCompatActivity() {
         map.setStyle(
             Style.Builder().fromUri(Uri.fromFile(styleFile).toString())
         ) { style ->
-            showBoundsArea(style, bounds, Color.RED, "source-id-1", "layer-id-1", 0.25f)
+            //Showing red box over the bbox area
+            if (showRedBbox) {
+                showBoundsArea(style, bounds, Color.RED, "source-id-1", "layer-id-1", 0.25f)
+            }
         }
-        //Setting camera view over the mbtiles area
 
-        //todo looking for camera update listener so that I can set min zoom pref after camera is done moving
+        //Setting camera view over the mbtiles area
         map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 0),
             object : MapboxMap.CancelableCallback {
                 override fun onCancel() {}
 
                 override fun onFinish() {
                     Log.d("zoom_min", map.cameraPosition.zoom.toString())
-                    map.setMinZoomPreference(map.cameraPosition.zoom)
+
+                    //Now that the camera is showing the new bounds fully, the current zoom becomes the min zoom
+                    map.setMinZoomPreference(map.cameraPosition.zoom - 0.5f)
+
+                    //Limiting the camera to this bounds at this zoom level
+//                    map.limitViewToBounds(bounds)
+
                     /*
-                    The way this works is that only the center of the map is not allowed to leave the
-                    bounding box. I had assumed that the entire map view would not go outside the bounding
-                    box but that is not how this works.
+                    Added a scale listener so that when zoom changes, new bbox can be created
+                    and map can be limited to that
                      */
-//                    map.setLatLngBoundsForCameraTarget(bounds.halfBounds())
-
-                    map.limitViewToBounds(bounds)
-
                     map.addOnScaleListener(object : MapboxMap.OnScaleListener {
                         override fun onScaleBegin(detector: StandardScaleGestureDetector) {}
 
                         override fun onScale(detector: StandardScaleGestureDetector) {
-                            map.limitViewToBounds(bounds)
+//                            map.limitViewToBounds(bounds)
                         }
 
                         override fun onScaleEnd(detector: StandardScaleGestureDetector) {}
                     })
 
-                    map.addOnCameraIdleListener { map.limitViewToBounds(bounds) }
+//                    map.addOnCameraIdleListener { map.limitViewToBounds(bounds) }
                 }
-
             })
-
-
-//        val zoom = getBoundsZoomLevel(this, bounds, Size(mapView.measuredWidth, mapView.measuredHeight))
-//        Log.d("showMBTilesFile", "map_height = ${mapView.measuredHeight}")
-//        Log.d("showMBTilesFile", "map_width = ${mapView.measuredWidth}")
-//        map.setMinZoomPreference(zoom)
     }
 
     private fun showMapCenter() {
@@ -291,39 +280,7 @@ fun Context.convertDpToPixel(dp: Int): Float {
     return dp * (metrics.densityDpi / 160f)
 }
 
-fun getBoundsZoomLevel(context: Context, bounds: LatLngBounds, mapDim: Size): Double {
-    val dp256 = context.convertDpToPixel(256).toInt()
-    val WORLD_DIM = Size(dp256, dp256)
-    val ZOOM_MAX = 21.toDouble()
-
-    fun latRad(lat: Double): Double {
-        val sin = sin(lat * Math.PI / 180)
-        val radX2 = ln((1 + sin) / (1 - sin)) / 2
-        return max(min(radX2, Math.PI), -Math.PI) / 2
-    }
-
-    fun zoom(mapPx: Int, worldPx: Int, fraction: Double): Double {
-        return ln(mapPx / worldPx / fraction) / ln(2.0)
-    }
-
-    val ne = bounds.northEast
-    val sw = bounds.southWest
-
-    val latFraction = (latRad(ne.latitude) - latRad(sw.latitude)) / Math.PI
-
-    val lngDiff = ne.longitude - sw.longitude
-    val lngFraction = if (lngDiff < 0) {
-        (lngDiff + 360)
-    } else {
-        (lngDiff / 360)
-    }
-
-    val latZoom = zoom(mapDim.height, WORLD_DIM.height, latFraction)
-    val lngZoom = zoom(mapDim.width, WORLD_DIM.width, lngFraction)
-
-    return minOf(latZoom, lngZoom, ZOOM_MAX)
-}
-
+//Passing color, source, layer etc since it will be different for actual bbox and limited bbox
 private fun showBoundsArea(
     loadedMapStyle: Style,
     bounds: LatLngBounds,
@@ -357,28 +314,6 @@ private fun showBoundsArea(
     )
 }
 
-fun LatLngBounds.halfBounds(): LatLngBounds {
-    val leftTopBounds =
-        LatLngBounds
-            .Builder()
-            .include(northWest)
-            .include(center)
-            .build()
-
-    val rightBottomBounds =
-        LatLngBounds
-            .Builder()
-            .include(center)
-            .include(southEast)
-            .build()
-
-    return LatLngBounds
-        .Builder()
-        .include(leftTopBounds.center)
-        .include(rightBottomBounds.center)
-        .build()
-}
-
 /*
 Wrote about this in detail over here
 https://medium.com/@ty2/how-to-limit-the-map-window-to-a-bounding-box-for-mapbox-maplibre-e504d3df1ae4
@@ -405,7 +340,10 @@ fun MapboxMap.limitViewToBounds(bounds: LatLngBounds) {
 
     setLatLngBoundsForCameraTarget(newBounds)
 
+    //Showing limited bbox
+    /*
     getStyle {
         showBoundsArea(it, newBounds, Color.GRAY, "source-id-2", "layer-id-2", 0.4f)
     }
+    */
 }

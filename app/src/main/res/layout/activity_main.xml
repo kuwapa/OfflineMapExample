@@ -13,8 +13,17 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:visibility="invisible"
         android:layout_centerHorizontal="true"
-        android:text="Pick File" />
+        android:text="Pick File"
+        android:visibility="invisible" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/debugModeSwitch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginRight="8dp" />
+
 
 </RelativeLayout>
