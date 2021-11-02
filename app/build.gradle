@@ -30,6 +30,11 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+
+    //Needed for Javalin
+    packagingOptions {
+        exclude 'org/eclipse/jetty/http/encoding.properties'
+    }
 }
 
 dependencies {
@@ -41,4 +46,7 @@ dependencies {
 
     //Maplibre
     implementation 'org.maplibre.gl:android-sdk:9.4.2'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.0'
+
+    implementation "io.javalin:javalin:4.1.1"
 }

@@ -36,7 +36,7 @@ import java.io.*
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val MBTILES_NAME = "maps_south_sulawesi.mbtiles"
+        const val MBTILES_NAME = "planet.mbtiles"
         const val showRedBbox = false
     }
 
@@ -82,7 +82,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<SwitchCompat>(R.id.debugModeSwitch).setOnCheckedChangeListener { compoundButton, b ->
+        findViewById<SwitchCompat>(R.id.debugModeSwitch).setOnCheckedChangeListener { _, b ->
             map.isDebugActive = b
         }
 
@@ -99,7 +99,6 @@ class MainActivity : AppCompatActivity() {
 
             //Getting reference to mbtiles file in assets
             showMbTilesMap(getFileFromAssets(this, MBTILES_NAME))
-            showMbTilesMap(getFileFromAssets(this, "maps_west_sulawesi.mbtiles"))
 //            showMbTilesMap(getFileFromAssets(this, "maps_salzburg_4.mbtiles"))
 
 //            showMbTilesMap(File("/storage/emulated/0/Android/data/com.abhiank.offline/files/belarus.mbtiles"))
@@ -207,6 +206,7 @@ class MainActivity : AppCompatActivity() {
 
 //https://stackoverflow.com/a/56074084/3090120
 fun copyStreamToFile(inputStream: InputStream, outputFile: File) {
+
     inputStream.use { input ->
         val outputStream = FileOutputStream(outputFile)
         outputStream.use { output ->
