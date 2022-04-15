@@ -1,0 +1,24 @@
+{
+    "version": 8,
+    "name": "test",
+    "zoom": 11.6,
+    "bearing": 0,
+    "pitch": 0,
+    "sources": {
+        "maptiler-overlay-source": {
+            "type": "raster",
+            "tileSize": 256,
+            "url": "___FILE_URI___"
+        }
+    },
+    "layers": [
+        {
+            "id": "maptiler-overlay",
+            "type": "raster",
+            "source": "maptiler-overlay-source",
+            "paint": {
+                "raster-opacity": 1.0
+            }
+        }
+    ]
+}

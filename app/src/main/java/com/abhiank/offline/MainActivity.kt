@@ -281,7 +281,7 @@ fun Context.convertDpToPixel(dp: Int): Float {
 }
 
 //Passing color, source, layer etc since it will be different for actual bbox and limited bbox
-private fun showBoundsArea(
+fun showBoundsArea(
     loadedMapStyle: Style,
     bounds: LatLngBounds,
     color: Int,
