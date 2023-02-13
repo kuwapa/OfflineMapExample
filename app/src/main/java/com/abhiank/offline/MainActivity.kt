@@ -40,8 +40,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val mapView: MapView by lazy { findViewById(R.id.mapView) }
+
     private lateinit var map: MapboxMap
     private lateinit var bounds: LatLngBounds
+    private var minZoomLevel: Double = 0.0
+
+    private lateinit var zoomSwitch: SwitchCompat
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,6 +83,15 @@ class MainActivity : AppCompatActivity() {
                 style.getLayer("place-country-1")?.setProperties(PropertyFactory.textField(lang))
 
                 style.getLayer("place-continent")?.setProperties(PropertyFactory.textField(lang))
+            }
+        }
+
+        zoomSwitch = findViewById(R.id.lockZoomSwitch)
+        zoomSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                map.setMinZoomPreference(minZoomLevel)
+            } else {
+                map.setMinZoomPreference(0.0)
             }
         }
 
@@ -146,6 +159,7 @@ class MainActivity : AppCompatActivity() {
         copyStreamToFile(styleJsonInputStream, styleFile)
 
         bounds = getLatLngBounds(mbtilesFile)
+        minZoomLevel = getMinZoom(mbtilesFile).toDouble()
 
         val uri = Uri.fromFile(mbtilesFile)
 
@@ -174,11 +188,18 @@ class MainActivity : AppCompatActivity() {
                 override fun onFinish() {
                     Log.d("zoom_min", map.cameraPosition.zoom.toString())
 
-                    //Now that the camera is showing the new bounds fully, the current zoom becomes the min zoom
-                    map.setMinZoomPreference(map.cameraPosition.zoom - 0.5f)
+                    if (minZoomLevel == 0.0) {
+                        minZoomLevel = map.cameraPosition.zoom
+                    }
 
-                    //Limiting the camera to this bounds at this zoom level
-//                    map.limitViewToBounds(bounds)
+                    if (zoomSwitch.isChecked) {
+                        //Now that the camera is showing the new bounds fully, the current zoom becomes the min zoom
+                        map.setMinZoomPreference(minZoomLevel)
+
+                        //Limiting the camera to this bounds at this zoom level
+                        map.limitViewToBounds(bounds)
+                    }
+
 
                     /*
                     Added a scale listener so that when zoom changes, new bbox can be created
@@ -188,13 +209,19 @@ class MainActivity : AppCompatActivity() {
                         override fun onScaleBegin(detector: StandardScaleGestureDetector) {}
 
                         override fun onScale(detector: StandardScaleGestureDetector) {
-//                            map.limitViewToBounds(bounds)
+                            if (zoomSwitch.isChecked) {
+                                map.limitViewToBounds(bounds)
+                            }
                         }
 
                         override fun onScaleEnd(detector: StandardScaleGestureDetector) {}
                     })
 
-//                    map.addOnCameraIdleListener { map.limitViewToBounds(bounds) }
+                    map.addOnCameraIdleListener {
+                        if (zoomSwitch.isChecked) {
+                            map.limitViewToBounds(bounds)
+                        }
+                    }
                 }
             })
     }
