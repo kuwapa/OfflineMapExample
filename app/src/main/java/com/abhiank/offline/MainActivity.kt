@@ -36,12 +36,12 @@ import java.io.*
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val MBTILES_NAME = "planet.mbtiles"
-        const val showRedBbox = false
+        const val MBTILES_NAME = "maps_south_sulawesi.mbtiles"
     }
 
     private val mapView: MapView by lazy { findViewById(R.id.mapView) }
     private lateinit var map: MapboxMap
+    private lateinit var bounds: LatLngBounds
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,6 +84,14 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<SwitchCompat>(R.id.debugModeSwitch).setOnCheckedChangeListener { _, b ->
             map.isDebugActive = b
+            if (b) {
+                showBoundsArea(map.style!!, bounds, Color.RED, "source-id-1", "layer-id-1", 0.25f)
+            } else {
+                map.style?.let {
+                    it.removeLayer("layer-id-1")
+                    it.removeSource("source-id-1")
+                }
+            }
         }
 
         mapView.onCreate(savedInstanceState)
@@ -137,7 +145,7 @@ class MainActivity : AppCompatActivity() {
         //Copying the original JSON content to new file
         copyStreamToFile(styleJsonInputStream, styleFile)
 
-        val bounds = getLatLngBounds(mbtilesFile)
+        bounds = getLatLngBounds(mbtilesFile)
 
         val uri = Uri.fromFile(mbtilesFile)
 
@@ -156,12 +164,7 @@ class MainActivity : AppCompatActivity() {
         //Setting the map style using the new edited JSON file
         map.setStyle(
             Style.Builder().fromUri(Uri.fromFile(styleFile).toString())
-        ) { style ->
-            //Showing red box over the bbox area
-            if (showRedBbox) {
-                showBoundsArea(style, bounds, Color.RED, "source-id-1", "layer-id-1", 0.25f)
-            }
-        }
+        ) { style -> }
 
         //Setting camera view over the mbtiles area
         map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 0),
@@ -253,6 +256,8 @@ fun getLatLngBounds(file: File): LatLngBounds {
     cursor?.moveToFirst()
     val boundsStr = cursor.getString(1).split(",")
 
+    Log.d("showMBTilesFile", "boundsStr = $boundsStr")
+
     cursor.close()
     openDatabase.close()
 
@@ -261,6 +266,32 @@ fun getLatLngBounds(file: File): LatLngBounds {
         .include(LatLng(boundsStr[1].toDouble(), boundsStr[0].toDouble()))
         .include(LatLng(boundsStr[3].toDouble(), boundsStr[2].toDouble()))
         .build()
+}
+
+fun getMinZoom(file: File): Int {
+
+    Log.d("getLatLngBounds", "absolutePath = ${file.absoluteFile}")
+
+    val openDatabase =
+        SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
+    val cursor = openDatabase.query(
+        "metadata",
+        arrayOf("name", "value"),
+        "name=?",
+        arrayOf("minzoom"),
+        null,
+        null,
+        null,
+    )
+    cursor?.moveToFirst()
+    val minZoomLevel = cursor.getString(1)
+
+    Log.d("showMBTilesFile", "minZoomLevel = $minZoomLevel")
+
+    cursor.close()
+    openDatabase.close()
+
+    return minZoomLevel.toInt()
 }
 
 //https://stackoverflow.com/a/2549222/3090120
