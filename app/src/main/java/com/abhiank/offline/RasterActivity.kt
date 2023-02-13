@@ -5,11 +5,11 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SwitchCompat
 import com.mapbox.android.gestures.StandardScaleGestureDetector
 import com.mapbox.mapboxsdk.Mapbox
-import com.mapbox.mapboxsdk.camera.CameraPosition
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
-import com.mapbox.mapboxsdk.geometry.LatLng
+import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import com.mapbox.mapboxsdk.maps.MapView
 import com.mapbox.mapboxsdk.maps.MapboxMap
 import com.mapbox.mapboxsdk.maps.Style
@@ -20,20 +20,44 @@ import java.io.FileWriter
 class RasterActivity : AppCompatActivity() {
 
     private val mapView: MapView by lazy { findViewById(R.id.mapView) }
+
     private lateinit var map: MapboxMap
+    private lateinit var bounds: LatLngBounds
+    private var minZoomLevel: Double = 0.0
+
+    private lateinit var zoomSwitch: SwitchCompat
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Mapbox.getInstance(this, null)
-        setContentView(R.layout.activity_raster)
+        setContentView(R.layout.activity_main)
 
         mapView.onCreate(savedInstanceState)
         mapView.getMapAsync {
             map = it
-
 //            map.setStyle(Style.Builder().fromUri("asset://raster_style.json"))
-
             showMbTilesMap(getFileFromAssets(this, "test_database3.mbtiles"))
+        }
+
+        zoomSwitch = findViewById(R.id.lockZoomSwitch)
+        zoomSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                map.setMinZoomPreference(minZoomLevel)
+            } else {
+                map.setMinZoomPreference(0.0)
+            }
+        }
+
+        findViewById<SwitchCompat>(R.id.debugModeSwitch).setOnCheckedChangeListener { _, isChecked ->
+            map.isDebugActive = isChecked
+            if (isChecked) {
+                showBoundsArea(map.style!!, bounds, Color.RED, "source-id-1", "layer-id-1", 0.25f)
+            } else {
+                map.style?.let {
+                    it.removeLayer("layer-id-1")
+                    it.removeSource("source-id-1")
+                }
+            }
         }
     }
 
@@ -46,8 +70,8 @@ class RasterActivity : AppCompatActivity() {
         //Copying the original JSON content to new file
         copyStreamToFile(styleJsonInputStream, styleFile)
 
-        val bounds = getLatLngBounds(mbtilesFile)
-        val minZoomLevel = getMinZoom(mbtilesFile)
+        bounds = getLatLngBounds(mbtilesFile)
+        minZoomLevel = getMinZoom(mbtilesFile).toDouble()
 
         val uri = Uri.fromFile(mbtilesFile)
 
@@ -87,27 +111,30 @@ class RasterActivity : AppCompatActivity() {
                     override fun onCancel() {}
 
                     override fun onFinish() {
-                        map.setMinZoomPreference(map.cameraPosition.zoom)
 
-                        map.limitViewToBounds(bounds)
+                        if (zoomSwitch.isChecked) {
+                            map.setMinZoomPreference(minZoomLevel)
+                            map.limitViewToBounds(bounds)
+                        }
 
                         map.addOnScaleListener(object : MapboxMap.OnScaleListener {
                             override fun onScaleBegin(detector: StandardScaleGestureDetector) {}
 
                             override fun onScale(detector: StandardScaleGestureDetector) {
-                                map.limitViewToBounds(bounds)
+                                if (zoomSwitch.isChecked)
+                                    map.limitViewToBounds(bounds)
                             }
 
                             override fun onScaleEnd(detector: StandardScaleGestureDetector) {}
                         })
 
-                        map.addOnCameraIdleListener { map.limitViewToBounds(bounds) }
+                        map.addOnCameraIdleListener {
+                            if (zoomSwitch.isChecked)
+                                map.limitViewToBounds(bounds)
+                        }
                     }
 
                 })
-
-            map.isDebugActive = true
-            showBoundsArea(style, bounds, Color.RED, "source-id-1", "layer-id-1", 0.25f)
         }
     }
 }

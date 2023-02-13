@@ -82,9 +82,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<SwitchCompat>(R.id.debugModeSwitch).setOnCheckedChangeListener { _, b ->
-            map.isDebugActive = b
-            if (b) {
+        findViewById<SwitchCompat>(R.id.debugModeSwitch).setOnCheckedChangeListener { _, isChecked ->
+            map.isDebugActive = isChecked
+            if (isChecked) {
                 showBoundsArea(map.style!!, bounds, Color.RED, "source-id-1", "layer-id-1", 0.25f)
             } else {
                 map.style?.let {
