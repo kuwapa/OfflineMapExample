@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Mapbox.getInstance(this, null)
+        Mapbox.getInstance(this)
         setContentView(R.layout.activity_main)
 
         fun changeLanguage(lang: String) {
