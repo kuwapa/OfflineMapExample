@@ -161,13 +161,9 @@ class MainActivity : AppCompatActivity() {
         bounds = getLatLngBounds(mbtilesFile)
         minZoomLevel = getMinZoom(mbtilesFile).toDouble()
 
-        val uri = Uri.fromFile(mbtilesFile)
-
-        Log.d("showMBTilesFile", "fileUri = $uri")
-
         //Replacing placeholder with uri of the mbtiles file
         val newFileStr = styleFile.inputStream().readToString()
-            .replace("___FILE_URI___", "mbtiles://$uri")
+            .replace("___FILE_URI___", "mbtiles:///${mbtilesFile.absolutePath}")
 
         //Writing new content to file
         val gpxWriter = FileWriter(styleFile)

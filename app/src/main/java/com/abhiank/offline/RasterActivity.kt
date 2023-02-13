@@ -73,18 +73,15 @@ class RasterActivity : AppCompatActivity() {
         bounds = getLatLngBounds(mbtilesFile)
         minZoomLevel = getMinZoom(mbtilesFile).toDouble()
 
-        val uri = Uri.fromFile(mbtilesFile)
-
         Log.d("showMBTilesFile", "bounds = $bounds")
         Log.d(
             "showMBTilesFile",
             "northeast = ${bounds.northEast}, southEast = ${bounds.southEast}, northWest = ${bounds.northWest}, southWest = ${bounds.southWest}"
         )
-        Log.d("showMBTilesFile", "fileUri = $uri")
 
         //Replacing placeholder with uri of the mbtiles file
         val newFileStr = styleFile.inputStream().readToString()
-            .replace("___FILE_URI___", "mbtiles://$uri")
+            .replace("___FILE_URI___", "mbtiles:///${mbtilesFile.absolutePath}")
 
         Log.d("showMBTilesFile", "new_file_str = $newFileStr")
 
