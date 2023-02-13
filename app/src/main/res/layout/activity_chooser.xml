@@ -7,25 +7,34 @@
     tools:context=".ChooserActivity">
 
     <Button
-        android:id="@+id/vectorMapButton"
+        android:id="@+id/rasterMapButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Offline Vector Map"
-        app:layout_constraintBottom_toTopOf="@+id/rasterMapButton"
+        android:text="Offline Raster Map"
+        app:layout_constraintBottom_toTopOf="@+id/vectorMapButton"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="packed" />
 
     <Button
-        android:id="@+id/rasterMapButton"
+        android:id="@+id/vectorMapButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Offline Raster Map"
+        android:text="Offline Vector Map"
+        app:layout_constraintBottom_toTopOf="@+id/localServerButton"
+        app:layout_constraintEnd_toEndOf="parent"
+
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/rasterMapButton" />
+
+    <Button
+        android:id="@+id/localServerButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Offline tile server"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/vectorMapButton" />
 

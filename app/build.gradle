@@ -4,14 +4,13 @@ plugins {
 }
 
 android {
-    compileSdkVersion 31
+    compileSdkVersion 33
     buildToolsVersion "30.0.3"
 
     defaultConfig {
         applicationId "com.abhiank.offline"
-        minSdkVersion 21
+        minSdkVersion 26
         targetSdkVersion 31
-        compileSdkVersion 33
         versionCode 1
         versionName "1.0"
 
@@ -35,6 +34,8 @@ android {
     //Needed for Javalin
     packagingOptions {
         exclude 'org/eclipse/jetty/http/encoding.properties'
+        exclude("META-INF/LICENSE.md")
+        exclude("META-INF/NOTICE.md")
     }
 }
 
@@ -49,6 +50,5 @@ dependencies {
     //Maplibre
     implementation 'org.maplibre.gl:android-sdk:9.6.0'
 
-    //implementation "io.javalin:javalin:4.6.0"
-
+    implementation "io.javalin:javalin:4.6.7"
 }

@@ -17,5 +17,9 @@ class ChooserActivity : AppCompatActivity() {
         findViewById<Button>(R.id.rasterMapButton).setOnClickListener {
             startActivity(Intent(this, RasterActivity::class.java))
         }
+
+        findViewById<Button>(R.id.localServerButton).setOnClickListener {
+            startActivity(Intent(this, LocalServerActivity::class.java))
+        }
     }
 }
