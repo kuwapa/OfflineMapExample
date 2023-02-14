@@ -1,42 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
     tools:context=".ChooserActivity">
-
-    <Button
-        android:id="@+id/rasterMapButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Offline Raster Map"
-        app:layout_constraintBottom_toTopOf="@+id/vectorMapButton"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed" />
 
     <Button
         android:id="@+id/vectorMapButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Offline Vector Map"
-        app:layout_constraintBottom_toTopOf="@+id/localServerButton"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:text="Offline Vector Map" />
 
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/rasterMapButton" />
+    <Button
+        android:id="@+id/rasterMapButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Offline Raster Map" />
 
     <Button
         android:id="@+id/localServerButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Offline tile server"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/vectorMapButton" />
+        android:layout_marginTop="8dp"
+        android:text="Offline tile server" />
 
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.appcompat.widget.LinearLayoutCompat>
