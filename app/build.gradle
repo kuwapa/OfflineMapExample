@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "com.abhiank.offline"
-        minSdkVersion 26
+        minSdkVersion 21
         targetSdkVersion 31
         versionCode 1
         versionName "1.0"
@@ -50,5 +50,6 @@ dependencies {
     //Maplibre
     implementation 'org.maplibre.gl:android-sdk:9.6.0'
 
-    implementation "io.javalin:javalin:4.6.7"
+    //Android server
+    implementation 'com.github.fengzhizi715.AndroidServer:core:1.3.3'
 }

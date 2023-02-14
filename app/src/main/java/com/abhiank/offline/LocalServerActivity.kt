@@ -12,14 +12,19 @@ import com.mapbox.mapboxsdk.maps.MapView
 import com.mapbox.mapboxsdk.maps.MapboxMap
 import com.mapbox.mapboxsdk.maps.Style
 import com.mapbox.mapboxsdk.offline.OfflineManager
-import io.javalin.Javalin
+import com.safframework.server.core.AndroidServer
+import com.safframework.server.core.http.Response
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlin.math.pow
 
 class LocalServerActivity : AppCompatActivity() {
 
     private val mapView: MapView by lazy { findViewById(R.id.mapView) }
+
     private lateinit var map: MapboxMap
-    private lateinit var serverApp: Javalin
+    private lateinit var serverApp: AndroidServer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,7 +32,7 @@ class LocalServerActivity : AppCompatActivity() {
         setContentView(R.layout.activity_local_server)
 
         findViewById<Button>(R.id.stopButton).setOnClickListener {
-            serverApp.stop()
+            serverApp.close()
         }
 
         mapView.onCreate(savedInstanceState)
@@ -48,33 +53,34 @@ class LocalServerActivity : AppCompatActivity() {
             val bounds = getLatLngBounds(dbFile)
             map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 0))
 
-            serverApp = Javalin.create().start(7000)
-            serverApp.get("/tiles/{z}/{x}/{y}") { ctx ->
+            CoroutineScope(Dispatchers.IO).launch {
+                serverApp = AndroidServer.Builder { port { 7000 } }.build()
+                serverApp
+                    .get("/tiles/{z}/{x}/{y}") { request, response: Response ->
+                        Log.d(
+                            "tiles",
+                            "zoom = ${request.param("z")}, x = ${request.param("x")}, y = ${request.param("y")}"
+                        )
 
-                Log.d(
-                    "tiles",
-                    "zoom = ${ctx.pathParam("z")}, x = ${ctx.pathParam("x")}, y = ${ctx.pathParam("y")}"
-                )
+                        val zoom = request.param("z")!!.toInt()
 
-                val zoom = ctx.pathParam("z").toInt()
+                        val tile = getTile(
+                            openDatabase,
+                            zoom,
+                            request.param("x")!!.toInt(),
+                            (2.0.pow(zoom.toDouble())).toInt() - 1 - request.param("y")!!.toInt()
+                        )
 
-                val tile = getTile(
-                    openDatabase,
-                    zoom,
-                    ctx.pathParam("x").toInt(),
-                    (2.0.pow(zoom.toDouble())).toInt() - 1 - ctx.pathParam("y").toInt()
-                )
-
-                if (tile != null) {
-                    ctx.result(tile)
-                    ctx.contentType("application/x-protobuf")
-                    ctx.header("Content-Encoding", "gzip")
-                    ctx.status(200)
-                } else {
-                    ctx.result("Error")
-                    ctx.status(404)
-                    ctx.contentType("text/html; charset=utf-8")
-                }
+                        if (tile != null) {
+                            response.sendFile(tile, "${request.param("y")}.png", "application/x-protobuf")
+                            response.addHeader("Content-Encoding", "gzip")
+                            response.setStatus(200)
+                        } else {
+                            response.setBodyText("Error")
+                            response.setStatus(404)
+                        }
+                    }
+                    .start()
             }
 
             map.setStyle(
@@ -86,7 +92,7 @@ class LocalServerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        serverApp.stop()
+        serverApp.close()
     }
 
     @SuppressLint("Recycle")
